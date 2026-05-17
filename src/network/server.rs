@@ -1,5 +1,7 @@
 use std::{io, net::{SocketAddr, UdpSocket}, sync::{Arc, RwLock}};
 
+use crate::core::AUDIO_BUFFER_LENGTH;
+
 #[derive(Clone)]
 pub struct Server {
     sock: Arc<UdpSocket>,
@@ -17,18 +19,12 @@ impl Server {
         }
     }
 
-    pub fn send_to_all(&self, bytes: &[i16; 4096]) -> io::Result<()> {
-        let mut packet = [0u8; 8192];
-        for (i, sample) in bytes.iter().enumerate() {
-            let b = sample.to_le_bytes(); // Convert to Little Endian bytes
-            packet[i * 2] = b[0];
-            packet[i * 2 + 1] = b[1];
-        }
+    pub fn send_to_all(&self, bytes: &[u8; AUDIO_BUFFER_LENGTH]) -> io::Result<()> {
         let read_lock = &self.clients.read();
         match read_lock {
             Ok(rwlock) => {
                 for client in rwlock.iter() {
-                    self.sock.send_to(&packet, client)?;
+                    self.sock.send_to(bytes, client)?;
                 }
             },
             Err(err) => {

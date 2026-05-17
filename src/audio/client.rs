@@ -1,18 +1,15 @@
+use libpulse_binding::stream::Direction;
 use rtrb::Consumer;
 
-use crate::{audio::pcm_utils, core::AUDIO_BUFFER_LENGTH};
+use crate::{audio::pulse_stream, core::AUDIO_BUFFER_LENGTH};
 
-pub fn audio_client(mut queue: Consumer<[i16; AUDIO_BUFFER_LENGTH]>) {
-    let pcm = pcm_utils::create_pcm();
-    if let Err(err) = pcm {
-        println!("Error while creating pcm for client {:?}", err);
-    }
-    let pcm = pcm.unwrap();
-    let io = pcm.io_i16().expect("Error to create IO for pcm");
+pub fn audio_client(mut queue: Consumer<[u8; AUDIO_BUFFER_LENGTH]>) {
+    let stream = pulse_stream::create_pusle_stream(Direction::Playback).expect("No stream");
     loop {
         if let Ok(bytes) = queue.pop() {
-            io.writei(&bytes).unwrap();
-            println!("Bytes wrote: {:?}", bytes);
+            if let Err(err) = stream.write(&bytes) {
+                println!("Error while writing to a stream: {:?}", err);
+            }
         }
     }
 }

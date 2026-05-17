@@ -1,38 +1,24 @@
-use alsa::{Card, Ctl, Direction, Error, card::Iter, pcm::PCM};
+use libpulse_binding::stream::Direction;
 use rtrb::Producer;
 
-use crate::{audio::pcm_utils, core::AUDIO_BUFFER_LENGTH};
+use crate::{audio::pulse_stream, core::AUDIO_BUFFER_LENGTH};
 
-pub fn audio_server(bytes_to_send: Producer<[i16; AUDIO_BUFFER_LENGTH]>) {
-    println!("-------");
-    let pcm = pcm_utils::create_pcm();
-    if let Err(err) = pcm {
-        println!("Error while creating io: {:?}", err);
-        return
-    }
-    let pcm = pcm.unwrap();
+pub fn audio_server(mut bytes_to_send: Producer<[u8; AUDIO_BUFFER_LENGTH]>) {
     
-    read_audio_loop(&pcm, bytes_to_send);
-}
-
-fn read_audio_loop(pcm: &PCM, mut bytes_to_send: Producer<[i16; 4096]>) {
-    let io = pcm.io_i16().expect("Error getting io_i16");
-    let mut buf = [0i16; 4096];
-    pcm.prepare().expect("Error while preparing");
-    pcm.start().expect("Error while starting");
-    println!("Loop is starting");
+    let stream = pulse_stream::create_pusle_stream(Direction::Record).expect("No stream");
+    // Wait for stream to be ready
+    let mut buffer = [0u8; AUDIO_BUFFER_LENGTH];
     loop {
-        match io.readi(&mut buf) {
-            Ok(_) => {
+        match stream.read(&mut buffer) {
+            Ok(()) => {
+                println!("Read: {:?}", buffer);
                 if !bytes_to_send.is_full() {
-                    if let Err(_) = bytes_to_send.push(buf) {
-                        println!("producer is full");
-                    }
+                    let _ = bytes_to_send.push(buffer);
                 }
             }
             Err(err) => {
-                println!("Erorr while reading from an audio server: {:?}",err);
-                break
+                eprintln!("Error while reading: {:?}", err);
+                break;
             }
         }
     }
