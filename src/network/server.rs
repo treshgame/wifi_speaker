@@ -54,7 +54,7 @@ impl Server {
 
 // Return struct with opened socket and clients lists
 pub fn start_server(port: u16) -> io::Result<Server> {
-    let addr = format!("127.0.0.1:{}", port);
+    let addr = format!("0.0.0.0:{}", port);
     let socket = UdpSocket::bind(&addr)?;
     Ok(Server::new(socket))
 }

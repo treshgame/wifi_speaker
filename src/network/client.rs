@@ -5,10 +5,12 @@ use rtrb::Producer;
 use crate::core::AUDIO_BUFFER_LENGTH;
 
 pub fn network_client(port: u16, server_port: u16, mut queue: Producer<[u8; AUDIO_BUFFER_LENGTH]>) -> io::Result<()> {
-    let client_addr = format!("127.0.0.1:{}", port);
+    let client_addr = format!("0.0.0.0:{}", port);
     let sock = UdpSocket::bind(client_addr)?;
+    println!("Client socket is created");
     
-    let connect_to_addr = format!("127.0.0.1:{}", server_port);
+    let connect_to_addr = format!("192.168.1.111:{}", server_port);
+    println!("DEBUG: Attempting connection to -> '{}'", connect_to_addr);
     sock.connect(connect_to_addr)?;
     println!("Connected to the server");
     sock.send(&[0])?;
