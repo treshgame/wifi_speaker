@@ -6,10 +6,7 @@ use crate::{audio::client::audio_client, core::server::DEFAULT_SERVER_PORT, netw
 
 // Main clinet-mode application loop
 pub fn client_loop() {
-    let (producer, consumer) = RingBuffer::new(16);
-    let bytes_consumer_thread = thread::spawn(move || {
-        audio_client(consumer);
-    });
+    let (producer, consumer) = RingBuffer::new(8);
 
     let bytes_producer_thread = thread::spawn(move || {
         if let Err(err) = network_client(DEFAULT_SERVER_PORT+1, DEFAULT_SERVER_PORT, producer) {
@@ -18,6 +15,7 @@ pub fn client_loop() {
     });
     println!("Client is started");
 
+    audio_client(consumer);
+
     bytes_producer_thread.join().expect("Error while join in producer thread");
-    bytes_consumer_thread.join().expect("Error while join in consumer thread");
 }

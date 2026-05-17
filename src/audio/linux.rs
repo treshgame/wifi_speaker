@@ -1,9 +1,25 @@
 use std::{cell::RefCell, rc::Rc};
 
-use libpulse_binding::{context::{Context, FlagSet, State}, error::PAErr, mainloop::standard::{IterateResult, Mainloop}, proplist::Proplist, sample::{Format, Spec}, stream::{self, Direction, Stream}};
+use libpulse_binding::{context::{Context, FlagSet, State}, error::PAErr, mainloop::standard::{IterateResult, Mainloop}, proplist::Proplist, sample::{Format, Spec}, stream::{Direction}};
 use libpulse_simple_binding::Simple;
 
-pub fn create_pusle_stream(dir: Direction) -> Option<Simple> {
+use crate::{audio::{AudioStream, SpeakerDirection}, core::AUDIO_BUFFER_LENGTH};
+
+pub struct LinuxStream {
+    stream: Simple
+}
+
+impl AudioStream for LinuxStream {
+    fn write(&self, bytes: &[u8]) {
+        let _ = self.stream.write(bytes);
+    }
+
+    fn read(&self, buf: &mut [u8; AUDIO_BUFFER_LENGTH]) {
+        let _ = self.stream.read(buf);
+    }
+}
+
+pub fn create_audio_stream(dir: SpeakerDirection) -> Option<Box<dyn AudioStream>> {
     let spec = Spec{
         format: Format::S16le,
         channels: 2,
@@ -12,15 +28,16 @@ pub fn create_pusle_stream(dir: Direction) -> Option<Simple> {
     assert!(spec.is_valid());
 
     // TODO: Refactor this later, don't know why Rust doesn't allow me to normally init Option
-    let stream = if let Direction::Record = dir {
+    let stream = if let SpeakerDirection::Capture = dir {
             let default_mon = get_default_monitor_name().expect("No default monitor name found");
-            create_simple(dir, &spec, Some(default_mon.as_str()))
+            create_simple(Direction::Record, &spec, Some(default_mon.as_str()))
         } else {
-            create_simple(dir, &spec, None)
+            create_simple(Direction::Playback, &spec, None)
         };
 
     if let Ok(stream) = stream {
-        return Some(stream);
+        let audio_stream = LinuxStream{stream: stream};
+        return Some(Box::new(audio_stream));
     }
 
     None

@@ -17,10 +17,7 @@ pub fn server_loop() {
         network_server(server_for_listener);
     });
     
-    let (producer, mut consumer) = RingBuffer::new(16);
-    let audio_thread = thread::spawn(move || {
-        audio_server(producer);
-    });
+    let (producer, mut consumer) = RingBuffer::new(8);
 
     let _ = thread::spawn(move || {
         loop {
@@ -29,8 +26,7 @@ pub fn server_loop() {
             }
         }
     });
+    audio_server(producer);
 
     println!("Started a server");
-    // TODO: make a normal error handling
-    audio_thread.join().unwrap();
 }
