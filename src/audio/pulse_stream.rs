@@ -1,3 +1,5 @@
+use std::{cell::RefCell, rc::Rc};
+
 use libpulse_binding::{context::{Context, FlagSet, State}, error::PAErr, mainloop::standard::{IterateResult, Mainloop}, proplist::Proplist, sample::{Format, Spec}, stream::{self, Direction, Stream}};
 use libpulse_simple_binding::Simple;
 
@@ -67,6 +69,30 @@ fn get_default_monitor_name() -> Option<String> {
             }
         }
     }
+
+    let default_sink_store = Rc::new(RefCell::new(None));
+    let store_clone = Rc::clone(&default_sink_store);
+
+    let op = context.introspect().get_server_info(move |info| {
+        if let Some(sink_name) = &info.default_sink_name {
+            *store_clone.borrow_mut() = Some(sink_name.to_string());
+        }
+    });
+
+    loop {
+        match mainloop.iterate(true) {
+            IterateResult::Quit(_) | IterateResult::Err(_) => return None,
+            IterateResult::Success(_) => {}
+        }
+
+        if op.get_state() != libpulse_binding::operation::State::Running {
+            break;
+        }
+    }
+
+    let mut sink_name = default_sink_store.borrow_mut().take()?;
+    sink_name.push_str(".monitor");
     
-    Some("@DEFAULT_SINK@.monitor".to_string()) 
+    println!("Discovered system default monitor: {}", sink_name);
+    Some(sink_name)
 }
