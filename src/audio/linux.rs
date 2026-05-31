@@ -3,10 +3,11 @@ use std::{cell::RefCell, rc::Rc};
 use libpulse_binding::{context::{Context, FlagSet, State}, error::PAErr, mainloop::standard::{IterateResult, Mainloop}, proplist::Proplist, sample::{Format, Spec}, stream::{Direction}};
 use libpulse_simple_binding::Simple;
 
-use crate::{audio::{AudioStream, SpeakerDirection}, core::AUDIO_BUFFER_LENGTH};
+use crate::{audio::{AudioParams, AudioStream, SpeakerDirection}, core::AUDIO_BUFFER_LENGTH};
 
 pub struct LinuxStream {
-    stream: Simple
+    stream: Simple,
+    params: AudioParams
 }
 
 impl AudioStream for LinuxStream {
@@ -17,14 +18,23 @@ impl AudioStream for LinuxStream {
     fn read(&self, buf: &mut [u8; AUDIO_BUFFER_LENGTH]) {
         let _ = self.stream.read(buf);
     }
+    
+    fn get_audio_params_bytes(&self) -> [u8; 6] {
+        self.params.to_bytes()
+    }
+
+    fn get_audio_params(&self) -> AudioParams {
+        self.params.clone()
+    }
 }
 
-pub fn create_audio_stream(dir: SpeakerDirection) -> Option<Box<dyn AudioStream>> {
-    let spec = Spec{
-        format: Format::S16le,
-        channels: 2,
-        rate: 44100
+pub fn create_audio_stream(dir: SpeakerDirection, audio_params: AudioParams) -> Option<Box<dyn AudioStream>> {
+    let spec = Spec {
+        format: convert_to_format(audio_params.format),
+        channels: audio_params.channels,
+        rate: audio_params.rate
     };
+
     assert!(spec.is_valid());
 
     // TODO: Refactor this later, don't know why Rust doesn't allow me to normally init Option
@@ -36,7 +46,12 @@ pub fn create_audio_stream(dir: SpeakerDirection) -> Option<Box<dyn AudioStream>
         };
 
     if let Ok(stream) = stream {
-        let audio_stream = LinuxStream{stream: stream};
+        let params = AudioParams {
+            rate: spec.rate,
+            channels: spec.channels,
+            format: spec.format as u8
+        };
+        let audio_stream = LinuxStream{stream, params};
         return Some(Box::new(audio_stream));
     }
 
@@ -112,4 +127,14 @@ fn get_default_monitor_name() -> Option<String> {
     
     println!("Discovered system default monitor: {}", sink_name);
     Some(sink_name)
+}
+
+pub fn convert_to_format(num: u8) -> Format {
+    match num {
+        8 => Format::U8,
+        16 => Format::S16NE,
+        24 => Format::S24NE,
+        32 => Format::S32NE,
+        _ => Format::Invalid
+    }
 }

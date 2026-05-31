@@ -1,11 +1,8 @@
 use rtrb::Producer;
 
-use crate::{audio::{SpeakerDirection, create_audio_stream}, core::AUDIO_BUFFER_LENGTH};
+use crate::{audio::AudioStream, core::AUDIO_BUFFER_LENGTH};
 
-pub fn audio_server(mut bytes_to_send: Producer<[u8; AUDIO_BUFFER_LENGTH]>) {
-    
-    let stream = create_audio_stream(SpeakerDirection::Capture).expect("No stream");
-    // Wait for stream to be ready
+pub fn audio_server(mut bytes_to_send: Producer<[u8; AUDIO_BUFFER_LENGTH]>, stream: Box<dyn AudioStream>) {
     let mut buffer = [0u8; AUDIO_BUFFER_LENGTH];
     loop {
         // TODO: normal error handling after testing

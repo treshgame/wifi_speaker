@@ -2,21 +2,39 @@ use std::{io, net::UdpSocket,  time::Duration};
 
 use rtrb::Producer;
 
-use crate::core::AUDIO_BUFFER_LENGTH;
+use crate::{audio::AudioParams, core::AUDIO_BUFFER_LENGTH};
 
-pub fn network_client(port: u16, server_port: u16, mut queue: Producer<[u8; AUDIO_BUFFER_LENGTH]>) -> io::Result<()> {
+pub fn receive_audio_params(sock: &UdpSocket) -> Option<AudioParams> {
+    let mut buf = [0u8; 6];
+    match sock.recv(&mut buf) {
+        Ok(size) => {
+            if size == 6 {
+                return Some(AudioParams::from_bytes(&buf));
+            }
+            println!("Wrong amount of bytes were recevied: {:?}", size);
+            return None
+        },
+        Err(err) => {
+            println!("Error while receiving audio params: {:?}", err);
+            return None
+        }
+    }
+}
+
+pub fn connect_to_server(server_addr: &str, port: u16, server_port: u16) -> io::Result<UdpSocket> {
     let client_addr = format!("0.0.0.0:{}", port);
     let sock = UdpSocket::bind(client_addr)?;
-    println!("Client socket is created");
-    
-    let connect_to_addr = format!("192.168.1.111:{}", server_port);
-    println!("DEBUG: Attempting connection to -> '{}'", connect_to_addr);
-    sock.connect(connect_to_addr)?;
+
+    let server_addr = format!("{server_addr}:{}", server_port);
+    sock.connect(server_addr)?;
     println!("Connected to the server");
+    sock.set_read_timeout(Some(Duration::from_secs(300)))?;
     sock.send(&[0])?;
+    
+    Ok(sock)
+}
 
-    sock.set_read_timeout(Some(Duration::from_secs(3)))?;
-
+pub fn network_client(sock: UdpSocket, mut queue: Producer<[u8; AUDIO_BUFFER_LENGTH]>) -> io::Result<()> {
     loop {
         let mut buffer = [0u8; AUDIO_BUFFER_LENGTH];
         match sock.recv(&mut buffer) {

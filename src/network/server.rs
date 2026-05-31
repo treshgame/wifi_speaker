@@ -1,21 +1,23 @@
 use std::{io, net::{SocketAddr, UdpSocket}, sync::{Arc, RwLock}};
 
-use crate::core::AUDIO_BUFFER_LENGTH;
+use crate::{audio::AudioParams, core::AUDIO_BUFFER_LENGTH};
 
 #[derive(Clone)]
 pub struct Server {
     sock: Arc<UdpSocket>,
-    clients: Arc<RwLock<Vec<SocketAddr>>>
+    clients: Arc<RwLock<Vec<SocketAddr>>>,
+    audio_params: Arc<AudioParams>
 }
 
 impl Server {
-    fn new(sock: UdpSocket) -> Server {
+    fn new(sock: UdpSocket, audio_params: AudioParams) -> Server {
         let clients = Vec::new();
         let rw_lock = RwLock::new(clients);
         let arc = Arc::new(rw_lock);
         Server {
             sock: Arc::new(sock),
-            clients: arc
+            clients: arc,
+            audio_params: Arc::new(audio_params)
         }
     }
 
@@ -36,6 +38,9 @@ impl Server {
     }
 
     pub fn add_client(&self, client: SocketAddr) {
+        // Send audio_params to a new client
+        self.sock.send_to(&self.audio_params.to_bytes(), client);
+
         let write_lock = self.clients.write();
         match write_lock {
             Ok(mut rwlock) => {
@@ -53,10 +58,10 @@ impl Server {
 }
 
 // Return struct with opened socket and clients lists
-pub fn start_server(port: u16) -> io::Result<Server> {
+pub fn start_server(port: u16, audio_params: AudioParams) -> io::Result<Server> {
     let addr = format!("0.0.0.0:{}", port);
     let socket = UdpSocket::bind(&addr)?;
-    Ok(Server::new(socket))
+    Ok(Server::new(socket, audio_params))
 }
 
 pub fn network_server(server: Server) {
