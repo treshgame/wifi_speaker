@@ -2,6 +2,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use libpulse_binding::{context::{Context, FlagSet, State}, error::PAErr, mainloop::standard::{IterateResult, Mainloop}, proplist::Proplist, sample::{Format, Spec}, stream::{Direction}};
 use libpulse_simple_binding::Simple;
+use rtrb::{Consumer, Producer};
 
 use crate::{audio::{AudioParams, AudioStream, SpeakerDirection}, core::AUDIO_BUFFER_LENGTH};
 
@@ -11,16 +12,25 @@ pub struct LinuxStream {
 }
 
 impl AudioStream for LinuxStream {
-    fn write(&self, bytes: &[u8]) {
-        let _ = self.stream.write(bytes);
+    fn write_loop(&self, mut consumer: Consumer<[u8; AUDIO_BUFFER_LENGTH]>) {
+        loop {
+            if let Ok(bytes) = consumer.pop() {
+                // TODO: normal error handling after testing
+                if let Err(err) = self.stream.write(&bytes) {
+                    println!("Error while write to audio stream: {:?}", err);
+                }
+            }
+        }
     }
 
-    fn read(&self, buf: &mut [u8; AUDIO_BUFFER_LENGTH]) {
-        let _ = self.stream.read(buf);
-    }
-    
-    fn get_audio_params_bytes(&self) -> [u8; 6] {
-        self.params.to_bytes()
+    fn read_loop(&self, mut producer: Producer<[u8; AUDIO_BUFFER_LENGTH]>) {
+        let mut buffer = [0u8; AUDIO_BUFFER_LENGTH];
+        loop {
+            // TODO: normal error handling after testing
+            if let Ok(()) = self.stream.read(&mut buffer) {
+                let _ = producer.push(buffer);
+            }
+        }
     }
 
     fn get_audio_params(&self) -> AudioParams {

@@ -6,7 +6,7 @@ use crate::{audio::AudioParams, core::AUDIO_BUFFER_LENGTH};
 pub struct Server {
     sock: Arc<UdpSocket>,
     clients: Arc<RwLock<Vec<SocketAddr>>>,
-    audio_params: Arc<AudioParams>
+    audio_params: [u8; 6]
 }
 
 impl Server {
@@ -17,7 +17,7 @@ impl Server {
         Server {
             sock: Arc::new(sock),
             clients: arc,
-            audio_params: Arc::new(audio_params)
+            audio_params: audio_params.to_bytes()
         }
     }
 
@@ -39,7 +39,7 @@ impl Server {
 
     pub fn add_client(&self, client: SocketAddr) {
         // Send audio_params to a new client
-        self.sock.send_to(&self.audio_params.to_bytes(), client);
+        self.sock.send_to(&self.audio_params, client);
 
         let write_lock = self.clients.write();
         match write_lock {

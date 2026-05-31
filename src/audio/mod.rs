@@ -8,6 +8,7 @@ pub use linux::create_audio_stream;
 
 #[cfg(target_os = "windows")]
 pub mod windows;
+use rtrb::{Consumer, Producer};
 #[cfg(target_os = "windows")]
 pub use windows::create_audio_stream;
 
@@ -19,9 +20,8 @@ pub enum SpeakerDirection {
 }
 
 pub trait AudioStream {
-    fn write(&self, bytes: &[u8]);
-    fn read(&self, buf: &mut [u8; AUDIO_BUFFER_LENGTH]);
-    fn get_audio_params_bytes(&self) -> [u8; 6];
+    fn write_loop(&self, consumer: Consumer<[u8; AUDIO_BUFFER_LENGTH]>);
+    fn read_loop(&self, producer: Producer<[u8; AUDIO_BUFFER_LENGTH]>);
     fn get_audio_params(&self) -> AudioParams;
 }
 
