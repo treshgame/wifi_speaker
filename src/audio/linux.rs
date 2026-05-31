@@ -34,7 +34,7 @@ pub fn create_audio_stream(dir: SpeakerDirection, audio_params: AudioParams) -> 
         channels: audio_params.channels,
         rate: audio_params.rate
     };
-
+    
     assert!(spec.is_valid());
 
     // TODO: Refactor this later, don't know why Rust doesn't allow me to normally init Option
@@ -49,7 +49,7 @@ pub fn create_audio_stream(dir: SpeakerDirection, audio_params: AudioParams) -> 
         let params = AudioParams {
             rate: spec.rate,
             channels: spec.channels,
-            format: spec.format as u8
+            format: convert_from_format(spec.format)
         };
         let audio_stream = LinuxStream{stream, params};
         return Some(Box::new(audio_stream));
@@ -136,5 +136,15 @@ pub fn convert_to_format(num: u8) -> Format {
         24 => Format::S24NE,
         32 => Format::S32NE,
         _ => Format::Invalid
+    }
+}
+
+pub fn convert_from_format(format: Format) -> u8 {
+    match format {
+        Format::U8 => 8,
+        Format::S16NE => 16,
+        Format::S24NE => 24,
+        Format::S32NE => 32,
+        _ => 0
     }
 }
