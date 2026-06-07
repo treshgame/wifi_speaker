@@ -147,6 +147,7 @@ pub fn convert_to_format(num: u8) -> Format {
         16 => Format::S16NE,
         24 => Format::S24NE,
         32 => Format::FLOAT32NE,
+        33 => Format::S32NE,
         _ => Format::Invalid
     }
 }
@@ -156,7 +157,8 @@ pub fn convert_from_format(format: Format) -> u8 {
         Format::U8 => 8,
         Format::S16NE => 16,
         Format::S24NE => 24,
-        Format::S32NE => 32,
+        Format::FLOAT32NE => 32,
+        Format::S32NE => 33,
         _ => 0
     }
 }
