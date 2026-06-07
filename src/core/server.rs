@@ -2,7 +2,7 @@ use std::thread;
 
 use rtrb::RingBuffer;
 
-use crate::{audio::{AudioParams, SpeakerDirection, server::audio_server}, core::create_audio_stream, network::server::{network_server, start_server}};
+use crate::{audio::{AudioParams, SpeakerDirection, server::audio_server}, core::{RING_BUFFER_SIZE, create_audio_stream}, network::server::{network_server, start_server}};
 
 pub const DEFAULT_SERVER_PORT: u16 = 10101;
 
@@ -22,7 +22,7 @@ pub fn server_loop() {
         network_server(server_for_listener);
     });
     
-    let (producer, mut consumer) = RingBuffer::new(8);
+    let (producer, mut consumer) = RingBuffer::new(RING_BUFFER_SIZE);
     let _ = thread::spawn(move || {
         loop {
             if let Ok(bytes) = consumer.pop() {

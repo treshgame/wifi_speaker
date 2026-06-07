@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, rc::Rc, thread, time::Duration};
 
 use libpulse_binding::{context::{Context, FlagSet, State}, error::PAErr, mainloop::standard::{IterateResult, Mainloop}, proplist::Proplist, sample::{Format, Spec}, stream::{Direction}};
 use libpulse_simple_binding::Simple;
@@ -13,13 +13,15 @@ pub struct LinuxStream {
 
 impl AudioStream for LinuxStream {
     fn write_loop(&self, mut consumer: Consumer<[u8; AUDIO_BUFFER_LENGTH]>) {
+        let sleep_dur = Duration::from_millis(1);
         loop {
-            if let Ok(bytes) = consumer.pop() {
-                // TODO: normal error handling after testing
+            while let Ok(bytes) = consumer.pop() {
                 if let Err(err) = self.stream.write(&bytes) {
-                    println!("Error while write to audio stream: {:?}", err);
+                    println!("Error while writing to audio stream: {:?}", err);
                 }
             }
+            // sleep while queue is empty to not 100% a CPU
+            thread::sleep(sleep_dur);
         }
     }
 
@@ -144,7 +146,7 @@ pub fn convert_to_format(num: u8) -> Format {
         8 => Format::U8,
         16 => Format::S16NE,
         24 => Format::S24NE,
-        32 => Format::S32NE,
+        32 => Format::FLOAT32NE,
         _ => Format::Invalid
     }
 }
