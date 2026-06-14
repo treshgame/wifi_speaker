@@ -2,17 +2,20 @@ use std::thread;
 
 use rtrb::RingBuffer;
 
-use crate::{audio::{AudioParams, SpeakerDirection, server::audio_server}, core::{RING_BUFFER_SIZE, create_audio_stream}, network::server::{network_server, start_server}};
+use crate::{
+    audio::{AudioParams, SpeakerDirection, server::audio_server},
+    cmd::properties::AppProperties, core::{RING_BUFFER_SIZE, create_audio_stream},
+    network::server::{network_server, start_server}
+};
 
-pub const DEFAULT_SERVER_PORT: u16 = 10101;
 
 // Main server-mode application loop
-pub fn server_loop() {
+pub fn server_loop(app_properties: AppProperties) {
     let default_params = AudioParams {rate: 44100, channels: 2, format: 16};
     // getting our audio stream with parameters
     let audio_param = create_audio_stream(SpeakerDirection::Capture, default_params).expect("Error creating audio_stream");
 
-    let net_server = start_server(DEFAULT_SERVER_PORT, audio_param.get_audio_params())
+    let net_server = start_server(app_properties.server_port, audio_param.get_audio_params())
         .expect("Failed to start a server");
 
     let server_for_listener = net_server.clone();

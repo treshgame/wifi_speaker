@@ -2,13 +2,23 @@ use std::thread;
 
 use rtrb::RingBuffer;
 
-use crate::{audio::{SpeakerDirection, client::audio_client}, core::{RING_BUFFER_SIZE, create_audio_stream, server::DEFAULT_SERVER_PORT}, network::client::{connect_to_server, network_client, receive_audio_params}};
+use crate::{
+    audio::{SpeakerDirection, client::audio_client},
+    cmd::properties::AppProperties,
+    core::{RING_BUFFER_SIZE, create_audio_stream},
+    network::client::{connect_to_server, network_client, receive_audio_params}
+};
 
 // Main clinet-mode application loop
-pub fn client_loop() {
-    let sock = connect_to_server("192.168.1.111", DEFAULT_SERVER_PORT+1, DEFAULT_SERVER_PORT);
+pub fn client_loop(app_properties: AppProperties) {
+    let sock = connect_to_server(
+        app_properties.server_addr.as_str(),
+        app_properties.client_port,
+        app_properties.server_port
+    );
+
     if let Err(err) = sock {
-        println!("Error while acquiring sockect: {:?}", err);
+        println!("Error while acquiring socket: {:?}", err);
         return;
     }
     let sock = sock.unwrap();
