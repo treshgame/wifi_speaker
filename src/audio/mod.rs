@@ -25,7 +25,7 @@ pub trait AudioStream {
     fn get_audio_params(&self) -> AudioParams;
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct AudioParams {
     pub rate: u32,
     pub channels: u8,
