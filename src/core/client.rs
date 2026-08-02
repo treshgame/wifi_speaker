@@ -1,4 +1,4 @@
-use std::thread;
+use std::{sync::Arc, thread::{self, sleep}};
 
 use rtrb::RingBuffer;
 
@@ -6,7 +6,7 @@ use crate::{
     audio::{SpeakerDirection, client::audio_client},
     cmd::properties::AppProperties,
     core::{RING_BUFFER_SIZE, create_audio_stream},
-    network::client::{connect_to_server, network_client, receive_audio_params}
+    network::{PING_INTERVAL, client::{connect_to_server, network_client, receive_audio_params, send_keepalive}}
 };
 
 // Main clinet-mode application loop
@@ -21,9 +21,10 @@ pub fn client_loop(app_properties: AppProperties) {
         println!("Error while acquiring socket: {:?}", err);
         return;
     }
-    let sock = sock.unwrap();
+    let bytes_producer_sock = Arc::new(sock.unwrap());
+    let ping_sock = bytes_producer_sock.clone();
     
-    let params = receive_audio_params(&sock);
+    let params = receive_audio_params(&bytes_producer_sock);
     if let None = params {
         println!("No audio params were received");
         return;
@@ -35,8 +36,15 @@ pub fn client_loop(app_properties: AppProperties) {
 
     let (producer, consumer) = RingBuffer::new(RING_BUFFER_SIZE * 2);
     let bytes_producer_thread = thread::spawn(move || {
-        if let Err(err) = network_client(sock, producer) {
+        if let Err(err) = network_client(&bytes_producer_sock, producer) {
             println!("Error starting a client socket: {:?}", err);
+        }
+    });
+
+    let _ = thread::spawn(move || {
+        loop {
+            sleep(PING_INTERVAL);
+            send_keepalive(&ping_sock);
         }
     });
     println!("Client is started");

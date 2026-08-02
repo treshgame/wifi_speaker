@@ -1,8 +1,8 @@
-use std::{io, net::UdpSocket,  time::Duration};
+use std::{io, net::UdpSocket};
 
 use rtrb::Producer;
 
-use crate::{audio::AudioParams, core::AUDIO_BUFFER_LENGTH};
+use crate::{audio::AudioParams, core::AUDIO_BUFFER_LENGTH, network::{CLIENT_TIMEOUT, KEEPALIVE_MESSAGE, REGISTER_MESSAGE}};
 
 pub fn receive_audio_params(sock: &UdpSocket) -> Option<AudioParams> {
     let mut buf = [0u8; 6];
@@ -28,13 +28,13 @@ pub fn connect_to_server(server_addr: &str, port: u16, server_port: u16) -> io::
     let server_addr = format!("{server_addr}:{}", server_port);
     sock.connect(server_addr)?;
     println!("Connected to the server");
-    sock.set_read_timeout(Some(Duration::from_secs(300)))?;
-    sock.send(&[0])?;
+    sock.set_read_timeout(Some(CLIENT_TIMEOUT))?;
+    sock.send(&[REGISTER_MESSAGE])?;
     
     Ok(sock)
 }
 
-pub fn network_client(sock: UdpSocket, mut queue: Producer<[u8; AUDIO_BUFFER_LENGTH]>) -> io::Result<()> {
+pub fn network_client(sock: &UdpSocket, mut queue: Producer<[u8; AUDIO_BUFFER_LENGTH]>) -> io::Result<()> {
     loop {
         let mut buffer = [0u8; AUDIO_BUFFER_LENGTH];
         match sock.recv(&mut buffer) {
@@ -53,4 +53,11 @@ pub fn network_client(sock: UdpSocket, mut queue: Producer<[u8; AUDIO_BUFFER_LEN
     }
 
     Ok(())
+}
+
+pub fn send_keepalive(sock: &UdpSocket) {
+    let result = sock.send(&[KEEPALIVE_MESSAGE]);
+    if let Err(err) = result {
+        println!("Error durnig sending a ping to the server: {:?}", err);
+    }
 }

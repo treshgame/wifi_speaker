@@ -1,11 +1,11 @@
-use std::thread;
+use std::thread::{self, sleep};
 
 use rtrb::RingBuffer;
 
 use crate::{
     audio::{AudioParams, SpeakerDirection, server::audio_server},
     cmd::properties::AppProperties, core::{RING_BUFFER_SIZE, create_audio_stream},
-    network::server::{network_server, start_server}
+    network::{PING_INTERVAL, server::{network_server, start_server}}
 };
 
 
@@ -18,11 +18,12 @@ pub fn server_loop(app_properties: AppProperties) {
     let net_server = start_server(app_properties.server_port, audio_param.get_audio_params())
         .expect("Failed to start a server");
 
-    let server_for_listener = net_server.clone();
+    let connection_listener_instance = net_server.clone();
+    let health_check_instance = net_server.clone();
 
     // listen for new clients
     let _ = thread::spawn(move || {
-        network_server(server_for_listener);
+        network_server(connection_listener_instance);
     });
     
     let (producer, mut consumer) = RingBuffer::new(RING_BUFFER_SIZE);
@@ -31,6 +32,13 @@ pub fn server_loop(app_properties: AppProperties) {
             if let Ok(bytes) = consumer.pop() {
                 net_server.send_to_all(&bytes).expect("Error while sending bytes");
             }
+        }
+    });
+
+    let _ = thread::spawn(move || {
+        loop {
+            sleep(PING_INTERVAL);
+            health_check_instance.check_clients();
         }
     });
     audio_server(producer, audio_param);
